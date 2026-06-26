@@ -60,8 +60,8 @@ The frontend runs on Vite and calls `/api` in production or `VITE_API_URL` in de
 
 1. Create a MySQL database in Hostinger and note the database host, username, password, database name, and port.
 2. Upload this project to your Hostinger Node.js app directory.
-3. In Hostinger, set the Node.js application root to the project folder or `backend` folder.
-4. If using the project root, set the startup command to `npm start`. If using `backend` as the app root, set the startup file to `server.js`.
+3. In Hostinger, set the Node.js application root to the project folder.
+4. Set the startup file to `server.js`. This root startup file launches `backend/server.js` and serves the built React frontend from `frontend/dist`.
 5. Set environment variables in the Hostinger Node.js panel:
    - `DB_HOST`
    - `DB_USER`

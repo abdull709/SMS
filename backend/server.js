@@ -81,4 +81,6 @@ if (require.main === module) {
   start();
 }
 
+app.start = start;
+
 module.exports = app;
