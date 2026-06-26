@@ -33,7 +33,7 @@ All seeded users use password `Password123!`.
 Create `backend/.env` from `backend/.env.example` and update the values for your MySQL database. On Hostinger, create the database in the hosting panel and manage it with phpMyAdmin.
 
 ```env
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=smart_school_manager
