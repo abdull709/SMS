@@ -1,6 +1,6 @@
 # Smart School Manager
 
-Smart School Manager is a full-stack school management system for nursery, primary, and secondary schools. It uses Node.js, Express.js, MySQL, Sequelize, React, Vite, Tailwind CSS, JWT authentication, bcrypt password hashing, Recharts analytics, and PDF report card generation.
+Smart School Manager is a full-stack school management system for nursery, primary, and secondary schools. It uses Node.js, Express.js, Sequelize, Supabase PostgreSQL or MySQL, React, Vite, Tailwind CSS, JWT authentication, bcrypt password hashing, Recharts analytics, and PDF report card generation.
 
 ## Quick Start
 
@@ -30,19 +30,19 @@ All seeded users use password `Password123!`.
 
 ## Environment Variables
 
-Create `backend/.env` from `backend/.env.example` and update the values for your MySQL database.
+Create `backend/.env` from `backend/.env.example` and update the values for your Supabase PostgreSQL database.
 
 ```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=smart_school_manager
-DB_PORT=3306
+DB_DIALECT=postgres
+DATABASE_URL=postgresql://postgres.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
+DB_SSL=true
 JWT_SECRET=replace-with-a-long-random-secret
 NODE_ENV=development
 PORT=3000
 CORS_ORIGIN=http://localhost:5173
 ```
+
+MySQL is still supported by setting `DB_DIALECT=mysql` and using `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and `DB_PORT`.
 
 ## Local Development
 
@@ -58,16 +58,14 @@ The frontend runs on Vite and calls `/api` in production or `VITE_API_URL` in de
 
 ## Hostinger Node.js Deployment
 
-1. Create a MySQL database in Hostinger and note the database host, username, password, database name, and port.
+1. Create a Supabase project, open **Project Settings > Database**, and copy the PostgreSQL connection string. The **Session pooler** connection string is usually best for hosted Node apps.
 2. Upload this project to your Hostinger Node.js app directory.
 3. In Hostinger, set the Node.js application root to the project folder.
 4. Set the startup file to `server.js`. This root startup file launches `backend/server.js` and serves the built React frontend from `frontend/dist`.
 5. Set environment variables in the Hostinger Node.js panel:
-   - `DB_HOST`
-   - `DB_USER`
-   - `DB_PASSWORD`
-   - `DB_NAME`
-   - `DB_PORT`
+   - `DB_DIALECT=postgres`
+   - `DATABASE_URL=postgresql://...`
+   - `DB_SSL=true`
    - `JWT_SECRET`
    - `NODE_ENV=production`
    - `PORT`
@@ -93,7 +91,15 @@ Express serves `frontend/dist` automatically in production, while all API routes
 
 ## Database
 
-The app uses Sequelize models with foreign keys and indexes. `npm run db:sync` creates the schema, and `npm run db:seed` inserts realistic sample data. A readable SQL schema is also provided at `backend/config/schema.sql`.
+The app uses Sequelize models with foreign keys and indexes. `npm run db:sync` creates the schema in Supabase PostgreSQL or MySQL, and `npm run db:seed` inserts realistic sample data. A readable MySQL-style SQL schema is also provided at `backend/config/schema.sql`; Supabase deployments should use the Sequelize sync command.
+
+## Supabase Notes
+
+- Use `DB_DIALECT=postgres`.
+- Use `DATABASE_URL` from Supabase rather than separate host/user/password fields.
+- Keep `DB_SSL=true`.
+- If the app starts but `/api/health` shows `"database": { "connected": false }`, the connection string, password, or Supabase network setting is wrong.
+- MongoDB Atlas is not a drop-in replacement for this project because the school records depend on relational joins and foreign keys. Supabase PostgreSQL is the compatible cloud database option.
 
 ## Main Features
 

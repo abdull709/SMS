@@ -14,6 +14,11 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 const port = process.env.PORT || 3000;
+const databaseStatus = {
+  connected: false,
+  error: null,
+  checkedAt: null
+};
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -44,6 +49,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     app: 'Smart School Manager',
+    database: databaseStatus,
     time: new Date().toISOString()
   });
 });
@@ -62,19 +68,31 @@ app.get('*', (req, res, next) => {
 app.use(notFound);
 app.use(errorHandler);
 
-async function start() {
+async function connectDatabase() {
   try {
     await sequelize.authenticate();
     if (String(process.env.AUTO_SYNC || 'false').toLowerCase() === 'true') {
       await sequelize.sync({ alter: true });
     }
-    app.listen(port, () => {
-      console.log(`Smart School Manager running on port ${port}`);
-    });
+    databaseStatus.connected = true;
+    databaseStatus.error = null;
+    databaseStatus.checkedAt = new Date().toISOString();
+    console.log('Database connection established.');
   } catch (error) {
-    console.error('Unable to start server:', error);
-    process.exit(1);
+    databaseStatus.connected = false;
+    databaseStatus.error = error.message;
+    databaseStatus.checkedAt = new Date().toISOString();
+    console.error('Database connection failed:', error);
   }
+}
+
+function start() {
+  const server = app.listen(port, () => {
+    console.log(`Smart School Manager running on port ${port}`);
+    connectDatabase();
+  });
+
+  return server;
 }
 
 if (require.main === module) {
