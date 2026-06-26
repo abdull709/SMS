@@ -21,7 +21,6 @@
     "morgan": "^1.10.0",
     "mysql2": "^3.11.5",
     "pdfkit": "^0.15.1",
-    "pg": "^8.13.1",
     "sequelize": "^6.37.5"
   },
   "devDependencies": {
