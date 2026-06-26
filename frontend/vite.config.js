@@ -1,9 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+function classicScriptHtml() {
+  return {
+    name: 'classic-script-html',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        return html.replace(
+        '<script type="module" crossorigin src="/assets/app.js"></script>',
+        '<script defer src="/assets/app.js"></script>'
+        );
+      }
+    }
+  };
+}
+
 export default defineConfig({
   base: '/',
-  plugins: [react()],
+  plugins: [react(), classicScriptHtml()],
   server: {
     port: 5173,
     proxy: {
