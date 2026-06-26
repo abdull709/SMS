@@ -6,7 +6,10 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import './styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = document.getElementById('root');
+document.documentElement.dataset.appMounted = 'starting';
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
@@ -16,3 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+window.requestAnimationFrame(() => {
+  document.documentElement.dataset.appMounted = 'true';
+});
