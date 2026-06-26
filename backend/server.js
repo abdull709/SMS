@@ -54,6 +54,14 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+app.get('/api', (_req, res) => {
+  res.json({
+    status: 'ok',
+    app: 'Smart School Manager API',
+    message: 'Open /login in a browser to sign in, or use /api/auth/login to request a token.'
+  });
+});
+
 app.use('/api', routes);
 
 const frontendDist = path.resolve(__dirname, '../frontend/dist');
