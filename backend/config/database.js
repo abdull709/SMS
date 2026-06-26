@@ -2,6 +2,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { Sequelize } = require('sequelize');
 
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const useSsl = String(process.env.DB_SSL || 'false').toLowerCase() === 'true';
