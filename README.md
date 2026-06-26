@@ -74,12 +74,16 @@ The frontend runs on Vite and calls `/api` in production or `VITE_API_URL` in de
    - `NODE_ENV=production`
    - `PORT`
    - `CORS_ORIGIN=https://your-domain.com`
-6. Install backend dependencies in `backend`.
-7. Build the frontend before or after upload:
+6. Install dependencies from the project root. The root package includes the backend runtime dependencies Hostinger needs for `server.js`, and the postinstall hook builds the frontend:
 
 ```bash
-npm --prefix frontend install
-npm --prefix frontend run build
+npm install
+```
+
+7. If you need to build manually, run:
+
+```bash
+npm run build
 ```
 
 8. Run database setup once:
