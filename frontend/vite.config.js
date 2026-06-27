@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 function classicScriptHtml() {
   return {
@@ -16,9 +21,28 @@ function classicScriptHtml() {
   };
 }
 
+function inlineCssHtml() {
+  return {
+    name: 'inline-css-html',
+    closeBundle() {
+      const indexPath = path.join(configDir, 'dist', 'index.html');
+      const cssPath = path.join(configDir, 'dist', 'assets', 'app.css');
+      if (!fs.existsSync(indexPath) || !fs.existsSync(cssPath)) return;
+
+      const html = fs.readFileSync(indexPath, 'utf8');
+      const css = fs.readFileSync(cssPath, 'utf8');
+      const nextHtml = html.replace(
+        /<link rel="stylesheet"[^>]+href="\/assets\/app\.css"[^>]*>/,
+        `<style>${css}</style>`
+      );
+      fs.writeFileSync(indexPath, nextHtml);
+    }
+  };
+}
+
 export default defineConfig({
   base: '/',
-  plugins: [react(), classicScriptHtml()],
+  plugins: [react(), classicScriptHtml(), inlineCssHtml()],
   server: {
     port: 5173,
     proxy: {

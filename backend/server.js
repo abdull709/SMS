@@ -19,9 +19,13 @@ const databaseStatus = {
   error: null,
   checkedAt: null
 };
+function normalizeOrigin(origin) {
+  return origin ? origin.trim().replace(/\/+$/, '') : '';
+}
+
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 app.use(helmet({
@@ -30,7 +34,7 @@ app.use(helmet({
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(normalizeOrigin(origin))) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
