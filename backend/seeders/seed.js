@@ -32,16 +32,19 @@ async function createUser(firstName, lastName, email, role, phone = null) {
   });
 }
 
-async function seed() {
-  try {
-    await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
+async function seedDatabase(options = {}) {
+  const { sync = true } = options;
 
-    const userCount = await User.count();
-    if (userCount > 0) {
-      console.log('Seed skipped because users already exist.');
-      return;
-    }
+  await sequelize.authenticate();
+  if (sync) {
+    await sequelize.sync({ alter: true });
+  }
+
+  const userCount = await User.count();
+  if (userCount > 0) {
+    console.log('Seed skipped because users already exist.');
+    return { skipped: true };
+  }
 
     const adminUser = await createUser('Amina', 'Okafor', 'admin@smartschool.test', 'admin', '+2348000000001');
 
@@ -212,8 +215,14 @@ async function seed() {
       { studentId: students[2].id, term: 'Third Term', session: '2025/2026', amountDue: 150000, amountPaid: 0, dueDate: '2026-06-30', status: 'unpaid' }
     ]);
 
-    console.log('Seed completed successfully.');
-    console.log(`Demo password for all users: ${password}`);
+  console.log('Seed completed successfully.');
+  console.log(`Demo password for all users: ${password}`);
+  return { skipped: false };
+}
+
+async function runSeeder() {
+  try {
+    await seedDatabase({ sync: true });
   } catch (error) {
     console.error('Seed failed:', error);
     process.exitCode = 1;
@@ -222,4 +231,8 @@ async function seed() {
   }
 }
 
-seed();
+if (require.main === module) {
+  runSeeder();
+}
+
+module.exports = { seedDatabase };

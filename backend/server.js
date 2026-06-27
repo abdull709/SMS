@@ -86,6 +86,10 @@ async function connectDatabase() {
     if (String(process.env.AUTO_SYNC || 'false').toLowerCase() === 'true') {
       await sequelize.sync({ alter: true });
     }
+    if (String(process.env.AUTO_SEED || 'false').toLowerCase() === 'true') {
+      const { seedDatabase } = require('./seeders/seed');
+      await seedDatabase({ sync: false });
+    }
     databaseStatus.connected = true;
     databaseStatus.error = null;
     databaseStatus.checkedAt = new Date().toISOString();

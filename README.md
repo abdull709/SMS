@@ -93,6 +93,15 @@ npm --prefix backend run db:sync
 npm --prefix backend run db:seed
 ```
 
+If your Hostinger plan does not provide a terminal, temporarily set these environment variables and restart the Node app once:
+
+```env
+AUTO_SYNC=true
+AUTO_SEED=true
+```
+
+After `/api/health` confirms the database is connected and you can sign in, set them back to `false` and restart again.
+
 9. Restart the Hostinger Node.js app.
 
 Express serves `frontend/dist` automatically in production, while all API routes remain under `/api`.
