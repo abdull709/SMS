@@ -11,6 +11,7 @@ import {
   Receipt,
   School,
   Settings2,
+  ShieldCheck,
   Users,
   UserRound,
   UserRoundCheck
@@ -19,6 +20,7 @@ import {
 export const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: '/dashboard', icon: Home },
+    { label: 'Admins', path: '/admin/admins', icon: ShieldCheck },
     { label: 'Students', path: '/admin/students', icon: GraduationCap },
     { label: 'Teachers', path: '/admin/teachers', icon: UserRoundCheck },
     { label: 'Parents', path: '/admin/parents', icon: Users },

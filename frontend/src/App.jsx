@@ -24,6 +24,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
 
             <Route element={<ProtectedRoute roles={['admin']} />}>
+              <Route path="/admin/admins" element={<ResourcePage type="admins" />} />
               <Route path="/admin/students" element={<ResourcePage type="students" />} />
               <Route path="/admin/teachers" element={<ResourcePage type="teachers" />} />
               <Route path="/admin/parents" element={<ResourcePage type="parents" />} />

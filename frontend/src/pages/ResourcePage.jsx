@@ -164,7 +164,7 @@ export function ResourcePage({ type, titleOverride, descriptionOverride, readOnl
   async function loadRows(nextPage = page, nextSearch = search) {
     setLoading(true);
     try {
-      const data = await api.get(config.endpoint, { page: nextPage, search: nextSearch, limit: 10 });
+      const data = await api.get(config.endpoint, { ...(config.listParams || {}), page: nextPage, search: nextSearch, limit: 10 });
       setRows(data.data || []);
       setMeta(data.meta);
     } catch (error) {
@@ -263,7 +263,7 @@ export function ResourcePage({ type, titleOverride, descriptionOverride, readOnl
             loadRows(nextPage, search);
           }}
           onEdit={canWrite ? openEdit : null}
-          onDelete={canWrite ? setConfirm : null}
+          onDelete={canWrite && config.allowDelete !== false ? setConfirm : null}
         />
       </Card>
 

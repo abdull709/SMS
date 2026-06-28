@@ -30,6 +30,39 @@ function parseIds(value) {
 }
 
 export const resourceConfigs = {
+  admins: {
+    title: 'Admins',
+    description: 'Create and manage administrator profiles.',
+    endpoint: '/api/users',
+    listParams: { role: 'admin' },
+    writeRoles: ['admin'],
+    allowDelete: false,
+    columns: [
+      { key: 'name', label: 'Name', render: (row) => fullName(row) },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone', render: (row) => row.phone || '-' },
+      { key: 'status', label: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'rose'}>{row.isActive ? 'Active' : 'Disabled'}</Badge> },
+      { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) }
+    ],
+    fields: [
+      { name: 'firstName', label: 'First name', required: true },
+      { name: 'lastName', label: 'Last name', required: true },
+      { name: 'email', label: 'Email', type: 'email', required: true },
+      { name: 'password', label: 'Password', type: 'password', required: true, createOnlyHint: true },
+      { name: 'phone', label: 'Phone' },
+      { name: 'isActive', label: 'Status', type: 'select', options: [{ label: 'Active', value: 'true' }, { label: 'Disabled', value: 'false' }] }
+    ],
+    toForm: (row) => ({
+      ...row,
+      isActive: row.isActive ? 'true' : 'false'
+    }),
+    transform: (payload) => {
+      const clean = stripEmptyPassword({ ...payload });
+      clean.role = 'admin';
+      clean.isActive = clean.isActive !== 'false';
+      return clean;
+    }
+  },
   students: {
     title: 'Students',
     description: 'Create, assign, and maintain student records.',
