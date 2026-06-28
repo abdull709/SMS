@@ -5,7 +5,11 @@ const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { School, User } = require('../models');
 const { createUserWithProfile, hashPassword } = require('../services/authService');
-const { schoolWhere } = require('../services/tenantService');
+const {
+  SUPER_ADMIN_EMAIL,
+  normalizeEmail,
+  requireSuperAdmin
+} = require('../services/superAdminService');
 
 const schoolInclude = [{ model: School, as: 'school', attributes: ['id', 'name', 'slug'] }];
 
@@ -37,10 +41,15 @@ const updateUserValidators = [
 ];
 
 const listUsers = asyncHandler(async (req, res) => {
-  const { page, limit, offset } = getPagination(req.query);
-  const where = schoolWhere(req.user);
+  requireSuperAdmin(req.user);
 
-  if (req.query.role) where.role = req.query.role;
+  if (req.query.role && req.query.role !== 'admin') {
+    throw new ApiError(422, 'This endpoint only manages admin accounts');
+  }
+
+  const { page, limit, offset } = getPagination(req.query);
+  const where = { role: 'admin' };
+
   if (req.query.search) {
     where[Op.or] = [
       { firstName: { [Op.like]: `%${req.query.search}%` } },
@@ -62,13 +71,21 @@ const listUsers = asyncHandler(async (req, res) => {
 });
 
 const createUser = asyncHandler(async (req, res) => {
+  requireSuperAdmin(req.user);
+
+  if (req.body.role !== 'admin') {
+    throw new ApiError(422, 'This endpoint only creates admin accounts');
+  }
+
   const user = await createUserWithProfile(req.body, { actor: req.user });
   res.status(201).json({ user });
 });
 
 const getUser = asyncHandler(async (req, res) => {
+  requireSuperAdmin(req.user);
+
   const user = await User.findOne({
-    where: schoolWhere(req.user, { id: req.params.id }),
+    where: { id: req.params.id, role: 'admin' },
     attributes: { exclude: ['password'] },
     include: schoolInclude
   });
@@ -77,8 +94,22 @@ const getUser = asyncHandler(async (req, res) => {
 });
 
 const updateUser = asyncHandler(async (req, res) => {
-  const user = await User.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
+  requireSuperAdmin(req.user);
+
+  if (req.body.role && req.body.role !== 'admin') {
+    throw new ApiError(422, 'Admin accounts must keep the admin role');
+  }
+
+  const user = await User.findOne({ where: { id: req.params.id, role: 'admin' } });
   if (!user) throw new ApiError(404, 'User not found');
+
+  const updatingSelf = Number(user.id) === Number(req.user.id);
+  if (updatingSelf && req.body.email !== undefined && normalizeEmail(req.body.email) !== SUPER_ADMIN_EMAIL) {
+    throw new ApiError(422, 'The super admin email cannot be changed from this screen');
+  }
+  if (updatingSelf && req.body.isActive !== undefined && String(req.body.isActive).toLowerCase() === 'false') {
+    throw new ApiError(422, 'The super admin account cannot be disabled');
+  }
 
   const allowed = ['firstName', 'lastName', 'email', 'phone', 'role', 'isActive'];
   const update = {};
@@ -106,8 +137,15 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
-  const deleted = await User.destroy({ where: schoolWhere(req.user, { id: req.params.id }) });
-  if (!deleted) throw new ApiError(404, 'User not found');
+  requireSuperAdmin(req.user);
+
+  const user = await User.findOne({ where: { id: req.params.id, role: 'admin' } });
+  if (!user) throw new ApiError(404, 'User not found');
+  if (Number(user.id) === Number(req.user.id)) {
+    throw new ApiError(422, 'The super admin account cannot delete itself');
+  }
+
+  await user.destroy();
   res.status(204).send();
 });
 

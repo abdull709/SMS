@@ -23,8 +23,11 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
 
-            <Route element={<ProtectedRoute roles={['admin']} />}>
+            <Route element={<ProtectedRoute roles={['admin']} requireSuperAdmin />}>
               <Route path="/admin/admins" element={<ResourcePage type="admins" />} />
+            </Route>
+
+            <Route element={<ProtectedRoute roles={['admin']} />}>
               <Route path="/admin/students" element={<ResourcePage type="students" />} />
               <Route path="/admin/teachers" element={<ResourcePage type="teachers" />} />
               <Route path="/admin/parents" element={<ResourcePage type="parents" />} />

@@ -10,6 +10,7 @@ const {
   Teacher
 } = require('../models');
 const { createSchoolForAdmin } = require('./tenantService');
+const { decorateSuperAdmin } = require('./superAdminService');
 
 const SALT_ROUNDS = 12;
 const schoolInclude = [{ model: School, as: 'school', attributes: ['id', 'name', 'slug'] }];
@@ -91,11 +92,12 @@ async function createUserWithProfile(payload, options = {}) {
       }, { transaction });
     }
 
-    return User.findByPk(user.id, {
+    const createdUser = await User.findByPk(user.id, {
       attributes: { exclude: ['password'] },
       include: schoolInclude,
       transaction
     });
+    return decorateSuperAdmin(createdUser);
   });
 }
 
@@ -120,7 +122,7 @@ async function login(email, password) {
   await user.update({ lastLoginAt: new Date() });
   return {
     token: signToken(user),
-    user: user.toJSON()
+    user: decorateSuperAdmin(user).toJSON()
   };
 }
 

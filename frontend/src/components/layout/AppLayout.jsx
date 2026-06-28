@@ -9,9 +9,13 @@ function initials(user) {
   return `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.toUpperCase();
 }
 
+function roleLabel(user) {
+  return user.isSuperAdmin ? 'Super Admin' : user.role;
+}
+
 function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
-  const navItems = roleNavigation[user.role] || [];
+  const navItems = (roleNavigation[user.role] || []).filter((item) => !item.superAdminOnly || user.isSuperAdmin);
 
   return (
     <>
@@ -51,7 +55,7 @@ function Sidebar({ open, onClose }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">{user.firstName} {user.lastName}</p>
-              <p className="text-xs capitalize text-slate-500">{user.role}</p>
+              <p className="text-xs capitalize text-slate-500">{roleLabel(user)}</p>
             </div>
           </div>
           <Button variant="secondary" className="w-full justify-start" onClick={logout}>
@@ -82,7 +86,7 @@ export function AppLayout() {
               <h1 className="text-lg font-bold text-ink">{user.firstName} {user.lastName}</h1>
             </div>
           </div>
-          <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-school-amber">{user.role}</span>
+          <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-school-amber">{roleLabel(user)}</span>
         </header>
         <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
           <Outlet />

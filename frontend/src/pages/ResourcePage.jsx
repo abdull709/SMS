@@ -264,6 +264,7 @@ export function ResourcePage({ type, titleOverride, descriptionOverride, readOnl
           }}
           onEdit={canWrite ? openEdit : null}
           onDelete={canWrite && config.allowDelete !== false ? setConfirm : null}
+          canDelete={(row) => !config.canDelete || config.canDelete(row, user)}
         />
       </Card>
 

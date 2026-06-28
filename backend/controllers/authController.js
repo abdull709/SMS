@@ -3,6 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { User } = require('../models');
 const { createUserWithProfile, login } = require('../services/authService');
+const { isSuperAdmin } = require('../services/superAdminService');
 
 const loginValidators = [
   body('email').isEmail().normalizeEmail(),
@@ -38,6 +39,10 @@ const register = asyncHandler(async (req, res) => {
 
   if (firstUser && req.body.role !== 'admin') {
     throw new ApiError(422, 'The first registered user must be an admin');
+  }
+
+  if (!firstUser && req.body.role === 'admin' && !isSuperAdmin(req.user)) {
+    throw new ApiError(403, 'Only the super admin can create admin accounts');
   }
 
   const user = await createUserWithProfile(req.body, req.user ? { actor: req.user } : {});

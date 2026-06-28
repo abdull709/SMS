@@ -13,6 +13,7 @@ export function DataTable({
   onPage,
   onEdit,
   onDelete,
+  canDelete,
   actions
 }) {
   return (
@@ -62,7 +63,7 @@ export function DataTable({
                             <Pencil className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        {onDelete ? (
+                        {onDelete && (!canDelete || canDelete(row)) ? (
                           <Button variant="danger" size="icon" onClick={() => onDelete(row)} aria-label="Delete">
                             <Trash2 className="h-4 w-4" />
                           </Button>

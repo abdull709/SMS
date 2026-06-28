@@ -36,7 +36,7 @@ export const resourceConfigs = {
     endpoint: '/api/users',
     listParams: { role: 'admin' },
     writeRoles: ['admin'],
-    allowDelete: false,
+    canDelete: (row, user) => row.id !== user.id,
     columns: [
       { key: 'name', label: 'Name', render: (row) => fullName(row) },
       { key: 'school', label: 'School', render: (row) => row.school?.name || '-' },
