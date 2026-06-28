@@ -52,7 +52,8 @@ function slugify(value) {
 }
 
 async function createSchoolForAdmin(payload, transaction) {
-  const baseName = payload.schoolName || `${payload.firstName} ${payload.lastName} School`;
+  const schoolName = String(payload.schoolName || '').trim();
+  const baseName = schoolName || `${payload.firstName} ${payload.lastName} School`;
   const baseSlug = slugify(baseName);
   let slug = baseSlug;
   let suffix = 1;

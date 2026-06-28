@@ -200,12 +200,17 @@ function StudentParentDashboard({ role }) {
   );
 }
 
+function dashboardTitle(user) {
+  const schoolName = user.school?.name?.trim();
+  return schoolName ? `${schoolName} Smart School Manager` : 'Smart School Manager';
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   return (
     <div>
       <PageHeader
-        title={`${user.role.charAt(0).toUpperCase()}${user.role.slice(1)} Dashboard`}
+        title={dashboardTitle(user)}
         description="Live school operations, academic progress, and role-specific tasks."
       />
       {['admin', 'teacher'].includes(user.role) ? (

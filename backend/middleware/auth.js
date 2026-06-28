@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { School, User } = require('../models');
 const ApiError = require('../utils/ApiError');
+
+const schoolInclude = [{ model: School, as: 'school', attributes: ['id', 'name', 'slug'] }];
 
 async function authenticate(req, _res, next) {
   const header = req.headers.authorization || '';
@@ -13,7 +15,8 @@ async function authenticate(req, _res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(payload.id, {
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password'] },
+      include: schoolInclude
     });
 
     if (!user || !user.isActive) {
@@ -35,7 +38,8 @@ async function optionalAuthenticate(req, _res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(payload.id, {
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password'] },
+      include: schoolInclude
     });
     if (user && user.isActive) req.user = user;
   } catch (_error) {

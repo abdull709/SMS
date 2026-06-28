@@ -39,6 +39,7 @@ export const resourceConfigs = {
     allowDelete: false,
     columns: [
       { key: 'name', label: 'Name', render: (row) => fullName(row) },
+      { key: 'school', label: 'School', render: (row) => row.school?.name || '-' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone', render: (row) => row.phone || '-' },
       { key: 'status', label: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'rose'}>{row.isActive ? 'Active' : 'Disabled'}</Badge> },
@@ -55,6 +56,7 @@ export const resourceConfigs = {
     ],
     toForm: (row) => ({
       ...row,
+      schoolName: row.school?.name || '',
       isActive: row.isActive ? 'true' : 'false'
     }),
     transform: (payload) => {

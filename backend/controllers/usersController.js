@@ -3,9 +3,11 @@ const { Op } = require('sequelize');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
-const { User } = require('../models');
+const { School, User } = require('../models');
 const { createUserWithProfile, hashPassword } = require('../services/authService');
 const { schoolWhere } = require('../services/tenantService');
+
+const schoolInclude = [{ model: School, as: 'school', attributes: ['id', 'name', 'slug'] }];
 
 const createUserValidators = [
   body('firstName').trim().isLength({ min: 2 }),
@@ -50,6 +52,7 @@ const listUsers = asyncHandler(async (req, res) => {
   const { rows, count } = await User.findAndCountAll({
     where,
     attributes: { exclude: ['password'] },
+    include: schoolInclude,
     limit,
     offset,
     order: [['createdAt', 'DESC']]
@@ -66,7 +69,8 @@ const createUser = asyncHandler(async (req, res) => {
 const getUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     where: schoolWhere(req.user, { id: req.params.id }),
-    attributes: { exclude: ['password'] }
+    attributes: { exclude: ['password'] },
+    include: schoolInclude
   });
   if (!user) throw new ApiError(404, 'User not found');
   res.json({ user });
@@ -87,7 +91,18 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 
   await user.update(update);
-  res.json({ user: user.toJSON() });
+
+  const schoolName = String(req.body.schoolName || '').trim();
+  if (user.role === 'admin' && schoolName) {
+    const school = await School.findByPk(user.schoolId);
+    if (school) await school.update({ name: schoolName });
+  }
+
+  const updatedUser = await User.findByPk(user.id, {
+    attributes: { exclude: ['password'] },
+    include: schoolInclude
+  });
+  res.json({ user: updatedUser });
 });
 
 const deleteUser = asyncHandler(async (req, res) => {

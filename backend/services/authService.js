@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/ApiError');
 const {
   sequelize,
+  School,
   User,
   Student,
   Parent,
@@ -11,6 +12,7 @@ const {
 const { createSchoolForAdmin } = require('./tenantService');
 
 const SALT_ROUNDS = 12;
+const schoolInclude = [{ model: School, as: 'school', attributes: ['id', 'name', 'slug'] }];
 
 function signToken(user) {
   return jwt.sign(
@@ -91,13 +93,17 @@ async function createUserWithProfile(payload, options = {}) {
 
     return User.findByPk(user.id, {
       attributes: { exclude: ['password'] },
+      include: schoolInclude,
       transaction
     });
   });
 }
 
 async function login(email, password) {
-  const user = await User.findOne({ where: { email: email.toLowerCase() } });
+  const user = await User.findOne({
+    where: { email: email.toLowerCase() },
+    include: schoolInclude
+  });
   if (!user) {
     throw new ApiError(401, 'Invalid email or password');
   }
