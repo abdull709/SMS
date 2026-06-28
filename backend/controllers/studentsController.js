@@ -28,6 +28,33 @@ const studentIncludes = [
   }
 ];
 
+async function normalizeParentIds(parentIds, transaction) {
+  if (!Array.isArray(parentIds)) return [];
+
+  const invalidParentIds = parentIds.filter((parentId) => {
+    const parsed = Number(parentId);
+    return !Number.isInteger(parsed) || parsed < 1;
+  });
+
+  if (invalidParentIds.length) {
+    throw new ApiError(422, 'Selected parents must be valid parent records.');
+  }
+
+  const ids = [...new Set(parentIds.map((parentId) => Number(parentId)))];
+  if (!ids.length) return [];
+
+  const existingCount = await Parent.count({
+    where: { id: { [Op.in]: ids } },
+    transaction
+  });
+
+  if (existingCount !== ids.length) {
+    throw new ApiError(422, 'One or more selected parents do not exist. Create the parent record first, then select it for the student.');
+  }
+
+  return ids;
+}
+
 const createStudentValidators = [
   body('firstName').trim().isLength({ min: 2 }),
   body('lastName').trim().isLength({ min: 2 }),
@@ -40,7 +67,9 @@ const createStudentValidators = [
     minSymbols: 1
   }),
   body('classId').isInt({ min: 1 }),
-  body('admissionNumber').trim().notEmpty()
+  body('admissionNumber').trim().notEmpty(),
+  body('parentIds').optional().isArray(),
+  body('parentIds.*').optional().isInt({ min: 1 }).toInt()
 ];
 
 const updateStudentValidators = [
@@ -53,7 +82,9 @@ const updateStudentValidators = [
     minUppercase: 1,
     minNumbers: 1,
     minSymbols: 1
-  })
+  }),
+  body('parentIds').optional().isArray(),
+  body('parentIds.*').optional().isInt({ min: 1 }).toInt()
 ];
 
 const listStudents = asyncHandler(async (req, res) => {
@@ -98,6 +129,7 @@ const getStudent = asyncHandler(async (req, res) => {
 
 const createStudent = asyncHandler(async (req, res) => {
   const student = await sequelize.transaction(async (transaction) => {
+    const parentIds = await normalizeParentIds(req.body.parentIds, transaction);
     const user = await User.create({
       firstName: req.body.firstName,
       lastName: req.body.lastName,
@@ -116,8 +148,8 @@ const createStudent = asyncHandler(async (req, res) => {
       address: req.body.address || null
     }, { transaction });
 
-    if (Array.isArray(req.body.parentIds)) {
-      await Promise.all(req.body.parentIds.map((parentId, index) => StudentParent.findOrCreate({
+    if (parentIds.length) {
+      await Promise.all(parentIds.map((parentId, index) => StudentParent.findOrCreate({
         where: { studentId: created.id, parentId },
         defaults: {
           relationship: req.body.relationship || 'Guardian',
@@ -139,6 +171,7 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (!student) throw new ApiError(404, 'Student not found');
 
   await sequelize.transaction(async (transaction) => {
+    const parentIds = await normalizeParentIds(req.body.parentIds, transaction);
     const user = await User.findByPk(student.userId, { transaction });
     const userUpdate = {};
     ['firstName', 'lastName', 'email', 'phone', 'isActive'].forEach((key) => {
@@ -155,7 +188,7 @@ const updateStudent = asyncHandler(async (req, res) => {
 
     if (Array.isArray(req.body.parentIds)) {
       await StudentParent.destroy({ where: { studentId: student.id }, transaction });
-      await Promise.all(req.body.parentIds.map((parentId, index) => StudentParent.create({
+      await Promise.all(parentIds.map((parentId, index) => StudentParent.create({
         studentId: student.id,
         parentId,
         relationship: req.body.relationship || 'Guardian',

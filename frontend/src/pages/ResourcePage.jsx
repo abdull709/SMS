@@ -27,7 +27,7 @@ function optionLabel(type, row) {
 
 function initialForm(config) {
   return Object.fromEntries(config.fields.map((field) => {
-    if (field.type === 'multiselect') return [field.name, ['all']];
+    if (field.type === 'multiselect') return [field.name, field.dependency ? [] : ['all']];
     if (field.type === 'select') return [field.name, field.options?.[0]?.value || ''];
     return [field.name, ''];
   }));
@@ -40,7 +40,8 @@ function normalizeForm(config, row) {
     let value = source[field.name];
     if (field.name === 'password') value = '';
     if (field.type === 'multiselect' && typeof value === 'string') value = value.split(',').map((item) => item.trim());
-    if (field.type === 'multiselect' && !value) value = ['all'];
+    if (field.type === 'multiselect' && Array.isArray(value)) value = value.map((item) => String(item));
+    if (field.type === 'multiselect' && !value) value = field.dependency ? [] : ['all'];
     form[field.name] = value ?? '';
   });
   return form;
@@ -98,10 +99,13 @@ function ResourceForm({ config, value, dependencies, onChange, onSubmit, onCance
         }
 
         if (field.type === 'multiselect') {
-          const current = Array.isArray(value[field.name]) ? value[field.name] : [];
+          const current = Array.isArray(value[field.name]) ? value[field.name].map((item) => String(item)) : [];
+          const options = field.dependency
+            ? (dependencies[field.dependency] || []).map((row) => ({ value: String(row.id), label: optionLabel(field.dependency, row) }))
+            : field.options || [];
           control = (
             <div className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2">
-              {(field.options || []).map((option) => (
+              {options.map((option) => (
                 <label key={option.value} className="flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -111,13 +115,14 @@ function ResourceForm({ config, value, dependencies, onChange, onSubmit, onCance
                       const next = checked
                         ? [...new Set([...current.filter((item) => item !== 'all'), option.value])]
                         : current.filter((item) => item !== option.value);
-                      setField(field.name, next.length ? next : ['all']);
+                      setField(field.name, next.length ? next : (field.dependency ? [] : ['all']));
                     }}
                     className="h-4 w-4 rounded border-slate-300 text-school-blue"
                   />
                   {option.label}
                 </label>
               ))}
+              {!options.length ? <p className="text-sm text-slate-500">No options available.</p> : null}
             </div>
           );
         }

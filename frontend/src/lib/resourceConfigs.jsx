@@ -23,9 +23,9 @@ function stripEmptyPassword(payload) {
 }
 
 function parseIds(value) {
-  return String(value || '')
-    .split(',')
-    .map((item) => Number(item.trim()))
+  const items = Array.isArray(value) ? value : String(value || '').split(',');
+  return items
+    .map((item) => Number(String(item).trim()))
     .filter(Boolean);
 }
 
@@ -53,7 +53,7 @@ export const resourceConfigs = {
       { name: 'gender', label: 'Gender', type: 'select', options: [{ label: 'Female', value: 'female' }, { label: 'Male', value: 'male' }, { label: 'Other', value: 'other' }] },
       { name: 'dateOfBirth', label: 'Date of birth', type: 'date' },
       { name: 'address', label: 'Address', type: 'textarea' },
-      { name: 'parentIds', label: 'Parent IDs', placeholder: 'Example: 1,2' }
+      { name: 'parentIds', label: 'Parents/Guardians', type: 'multiselect', dependency: 'parents' }
     ],
     toForm: (row) => ({
       ...row,
@@ -61,7 +61,7 @@ export const resourceConfigs = {
       lastName: row.user?.lastName,
       email: row.user?.email,
       phone: row.user?.phone,
-      parentIds: row.parents?.map((parent) => parent.id).join(',') || ''
+      parentIds: row.parents?.map((parent) => String(parent.id)) || []
     }),
     transform: (payload) => {
       const clean = stripEmptyPassword({ ...payload });
