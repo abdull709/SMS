@@ -84,6 +84,7 @@ app.use(errorHandler);
 async function connectDatabase() {
   try {
     await sequelize.authenticate();
+    await runTenantSchemaMigrations();
     if (String(process.env.AUTO_SYNC || 'false').toLowerCase() === 'true') {
       await sequelize.sync({ alter: true });
       await runTenantSchemaMigrations();
@@ -104,10 +105,10 @@ async function connectDatabase() {
   }
 }
 
-function start() {
+async function start() {
+  await connectDatabase();
   const server = app.listen(port, () => {
     console.log(`Smart School Manager running on port ${port}`);
-    connectDatabase();
   });
 
   return server;
