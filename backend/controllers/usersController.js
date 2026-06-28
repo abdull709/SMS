@@ -5,6 +5,7 @@ const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { User } = require('../models');
 const { createUserWithProfile, hashPassword } = require('../services/authService');
+const { schoolWhere } = require('../services/tenantService');
 
 const createUserValidators = [
   body('firstName').trim().isLength({ min: 2 }),
@@ -35,7 +36,7 @@ const updateUserValidators = [
 
 const listUsers = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
 
   if (req.query.role) where.role = req.query.role;
   if (req.query.search) {
@@ -58,12 +59,13 @@ const listUsers = asyncHandler(async (req, res) => {
 });
 
 const createUser = asyncHandler(async (req, res) => {
-  const user = await createUserWithProfile(req.body);
+  const user = await createUserWithProfile(req.body, { actor: req.user });
   res.status(201).json({ user });
 });
 
 const getUser = asyncHandler(async (req, res) => {
-  const user = await User.findByPk(req.params.id, {
+  const user = await User.findOne({
+    where: schoolWhere(req.user, { id: req.params.id }),
     attributes: { exclude: ['password'] }
   });
   if (!user) throw new ApiError(404, 'User not found');
@@ -71,7 +73,7 @@ const getUser = asyncHandler(async (req, res) => {
 });
 
 const updateUser = asyncHandler(async (req, res) => {
-  const user = await User.findByPk(req.params.id);
+  const user = await User.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!user) throw new ApiError(404, 'User not found');
 
   const allowed = ['firstName', 'lastName', 'email', 'phone', 'role', 'isActive'];
@@ -89,7 +91,7 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
-  const deleted = await User.destroy({ where: { id: req.params.id } });
+  const deleted = await User.destroy({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!deleted) throw new ApiError(404, 'User not found');
   res.status(204).send();
 });

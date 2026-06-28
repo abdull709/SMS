@@ -11,6 +11,10 @@ const AssignmentSubmission = sequelize.define('AssignmentSubmission', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   studentId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -35,7 +39,8 @@ const AssignmentSubmission = sequelize.define('AssignmentSubmission', {
 }, {
   tableName: 'assignment_submissions',
   indexes: [
-    { unique: true, fields: ['assignment_id', 'student_id'] },
+    { unique: true, fields: ['school_id', 'assignment_id', 'student_id'] },
+    { fields: ['school_id'] },
     { fields: ['student_id'] },
     { fields: ['status'] }
   ]

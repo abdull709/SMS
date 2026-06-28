@@ -11,10 +11,13 @@ const Subject = sequelize.define('Subject', {
     type: DataTypes.STRING(120),
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   code: {
     type: DataTypes.STRING(30),
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   level: {
     type: DataTypes.ENUM('nursery', 'primary', 'secondary', 'all'),
@@ -24,7 +27,8 @@ const Subject = sequelize.define('Subject', {
 }, {
   tableName: 'subjects',
   indexes: [
-    { unique: true, fields: ['code'] },
+    { unique: true, fields: ['school_id', 'code'] },
+    { fields: ['school_id'] },
     { fields: ['level'] }
   ]
 });

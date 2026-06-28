@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { hashPassword } = require('../services/authService');
+const { schoolWhere } = require('../services/tenantService');
 const {
   sequelize,
   User,
@@ -45,6 +46,7 @@ const updateParentValidators = [
 
 const listParents = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
+  const where = schoolWhere(req.user);
   const include = [...parentIncludes];
 
   if (req.query.search) {
@@ -61,6 +63,7 @@ const listParents = asyncHandler(async (req, res) => {
   }
 
   const { rows, count } = await Parent.findAndCountAll({
+    where,
     include,
     distinct: true,
     limit,
@@ -72,7 +75,7 @@ const listParents = asyncHandler(async (req, res) => {
 });
 
 const getParent = asyncHandler(async (req, res) => {
-  const parent = await Parent.findByPk(req.params.id, { include: parentIncludes });
+  const parent = await Parent.findOne({ where: schoolWhere(req.user, { id: req.params.id }), include: parentIncludes });
   if (!parent) throw new ApiError(404, 'Parent not found');
   res.json({ parent });
 });
@@ -85,22 +88,24 @@ const createParent = asyncHandler(async (req, res) => {
       email: req.body.email.toLowerCase(),
       password: await hashPassword(req.body.password),
       phone: req.body.phone || null,
-      role: 'parent'
+      role: 'parent',
+      schoolId: req.user.schoolId ?? null
     }, { transaction });
 
     return Parent.create({
       userId: user.id,
+      schoolId: req.user.schoolId ?? null,
       occupation: req.body.occupation || null,
       address: req.body.address || null
     }, { transaction });
   });
 
-  const hydrated = await Parent.findByPk(parent.id, { include: parentIncludes });
+  const hydrated = await Parent.findOne({ where: schoolWhere(req.user, { id: parent.id }), include: parentIncludes });
   res.status(201).json({ parent: hydrated });
 });
 
 const updateParent = asyncHandler(async (req, res) => {
-  const parent = await Parent.findByPk(req.params.id);
+  const parent = await Parent.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!parent) throw new ApiError(404, 'Parent not found');
 
   await sequelize.transaction(async (transaction) => {
@@ -119,12 +124,12 @@ const updateParent = asyncHandler(async (req, res) => {
     if (Object.keys(profileUpdate).length) await parent.update(profileUpdate, { transaction });
   });
 
-  const hydrated = await Parent.findByPk(parent.id, { include: parentIncludes });
+  const hydrated = await Parent.findOne({ where: schoolWhere(req.user, { id: parent.id }), include: parentIncludes });
   res.json({ parent: hydrated });
 });
 
 const deleteParent = asyncHandler(async (req, res) => {
-  const parent = await Parent.findByPk(req.params.id);
+  const parent = await Parent.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!parent) throw new ApiError(404, 'Parent not found');
   await User.destroy({ where: { id: parent.userId } });
   res.status(204).send();

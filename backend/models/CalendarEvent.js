@@ -28,6 +28,10 @@ const CalendarEvent = sequelize.define('CalendarEvent', {
     allowNull: false,
     defaultValue: 'event'
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   createdBy: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -40,6 +44,7 @@ const CalendarEvent = sequelize.define('CalendarEvent', {
 }, {
   tableName: 'calendar_events',
   indexes: [
+    { fields: ['school_id'] },
     { fields: ['start_date'] },
     { fields: ['created_by'] }
   ]

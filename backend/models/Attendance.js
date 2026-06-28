@@ -11,6 +11,10 @@ const Attendance = sequelize.define('Attendance', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   classId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -34,7 +38,8 @@ const Attendance = sequelize.define('Attendance', {
 }, {
   tableName: 'attendance',
   indexes: [
-    { unique: true, fields: ['student_id', 'date'] },
+    { unique: true, fields: ['school_id', 'student_id', 'date'] },
+    { fields: ['school_id'] },
     { fields: ['class_id', 'date'] },
     { fields: ['teacher_id'] }
   ]

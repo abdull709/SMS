@@ -14,8 +14,9 @@ function formatName(user) {
   return `${user.firstName} ${user.lastName}`;
 }
 
-async function buildReportCard(studentId, term, session, generatedBy = null) {
-  const student = await Student.findByPk(studentId, {
+async function buildReportCard(studentId, term, session, generatedBy = null, schoolId = null) {
+  const student = await Student.findOne({
+    where: { id: studentId, schoolId },
     include: [
       { model: User, as: 'user' },
       { model: SchoolClass, as: 'class' }
@@ -25,7 +26,7 @@ async function buildReportCard(studentId, term, session, generatedBy = null) {
   if (!student) throw new ApiError(404, 'Student not found');
 
   const grades = await Grade.findAll({
-    where: { studentId, term, session },
+    where: { schoolId, studentId, term, session },
     include: [{ model: Subject, as: 'subject' }],
     order: [[{ model: Subject, as: 'subject' }, 'name', 'ASC']]
   });
@@ -38,13 +39,14 @@ async function buildReportCard(studentId, term, session, generatedBy = null) {
         : average >= 40 ? 'Fair result, improvement encouraged'
           : 'Needs steady academic support';
 
-  const attendanceTotal = await Attendance.count({ where: { studentId } });
+  const attendanceTotal = await Attendance.count({ where: { schoolId, studentId } });
   const attendancePresent = await Attendance.count({
-    where: { studentId, status: ['present', 'late'] }
+    where: { schoolId, studentId, status: ['present', 'late'] }
   });
 
   const report = await ReportCard.upsert({
     studentId,
+    schoolId,
     classId: student.classId,
     term,
     session,

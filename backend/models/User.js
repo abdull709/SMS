@@ -29,6 +29,10 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('admin', 'teacher', 'student', 'parent'),
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   phone: {
     type: DataTypes.STRING(40),
     allowNull: true
@@ -46,7 +50,8 @@ const User = sequelize.define('User', {
   tableName: 'users',
   indexes: [
     { unique: true, fields: ['email'] },
-    { fields: ['role'] }
+    { fields: ['role'] },
+    { fields: ['school_id'] }
   ]
 });
 

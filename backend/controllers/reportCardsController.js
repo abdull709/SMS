@@ -22,7 +22,8 @@ const viewReportCard = asyncHandler(async (req, res) => {
     req.params.studentId,
     req.query.term,
     req.query.session,
-    req.user.role === 'admin' || req.user.role === 'teacher' ? req.user.id : null
+    req.user.role === 'admin' || req.user.role === 'teacher' ? req.user.id : null,
+    req.user.schoolId ?? null
   );
 
   res.json(data);
@@ -38,7 +39,8 @@ const downloadReportCard = asyncHandler(async (req, res) => {
     req.params.studentId,
     req.query.term,
     req.query.session,
-    req.user.role === 'admin' || req.user.role === 'teacher' ? req.user.id : null
+    req.user.role === 'admin' || req.user.role === 'teacher' ? req.user.id : null,
+    req.user.schoolId ?? null
   );
   const pdf = await generateReportCardPdf(data);
   const fileName = `${data.student.admissionNumber}-${data.term.replace(/\s+/g, '-')}-${data.session}.pdf`;

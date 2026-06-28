@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { hashPassword } = require('../services/authService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const {
   sequelize,
   User,
@@ -48,7 +49,7 @@ const updateTeacherValidators = [
 
 const listTeachers = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
   const include = [...teacherIncludes];
 
   if (req.user.role === 'teacher') {
@@ -81,7 +82,7 @@ const listTeachers = asyncHandler(async (req, res) => {
 });
 
 const getTeacher = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findByPk(req.params.id, { include: teacherIncludes });
+  const teacher = await Teacher.findOne({ where: schoolWhere(req.user, { id: req.params.id }), include: teacherIncludes });
   if (!teacher) throw new ApiError(404, 'Teacher not found');
   if (req.user.role === 'teacher' && teacher.userId !== req.user.id) {
     throw new ApiError(403, 'You cannot access another teacher profile');
@@ -97,23 +98,25 @@ const createTeacher = asyncHandler(async (req, res) => {
       email: req.body.email.toLowerCase(),
       password: await hashPassword(req.body.password),
       phone: req.body.phone || null,
-      role: 'teacher'
+      role: 'teacher',
+      schoolId: req.user.schoolId ?? null
     }, { transaction });
 
     return Teacher.create({
       userId: user.id,
+      schoolId: req.user.schoolId ?? null,
       employeeNumber: req.body.employeeNumber,
       qualification: req.body.qualification || null,
       specialization: req.body.specialization || null
     }, { transaction });
   });
 
-  const hydrated = await Teacher.findByPk(teacher.id, { include: teacherIncludes });
+  const hydrated = await Teacher.findOne({ where: schoolWhere(req.user, { id: teacher.id }), include: teacherIncludes });
   res.status(201).json({ teacher: hydrated });
 });
 
 const updateTeacher = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findByPk(req.params.id);
+  const teacher = await Teacher.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!teacher) throw new ApiError(404, 'Teacher not found');
 
   await sequelize.transaction(async (transaction) => {
@@ -132,40 +135,44 @@ const updateTeacher = asyncHandler(async (req, res) => {
     if (Object.keys(profileUpdate).length) await teacher.update(profileUpdate, { transaction });
   });
 
-  const hydrated = await Teacher.findByPk(teacher.id, { include: teacherIncludes });
+  const hydrated = await Teacher.findOne({ where: schoolWhere(req.user, { id: teacher.id }), include: teacherIncludes });
   res.json({ teacher: hydrated });
 });
 
 const deleteTeacher = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findByPk(req.params.id);
+  const teacher = await Teacher.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!teacher) throw new ApiError(404, 'Teacher not found');
   await User.destroy({ where: { id: teacher.userId } });
   res.status(204).send();
 });
 
 const assignTeacher = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findByPk(req.params.id);
+  const teacher = await Teacher.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!teacher) throw new ApiError(404, 'Teacher not found');
+  await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class');
+  await assertSchoolRecord(Subject, req.body.subjectId, req.user, 'Subject');
 
   const [assignment] = await TeacherSubject.findOrCreate({
-    where: {
+    where: schoolWhere(req.user, {
       teacherId: teacher.id,
       classId: req.body.classId,
       subjectId: req.body.subjectId
-    }
+    }),
+    defaults: { schoolId: req.user.schoolId ?? null }
   });
 
   res.status(201).json({ assignment });
 });
 
 const removeTeacherAssignment = asyncHandler(async (req, res) => {
-  const deleted = await TeacherSubject.destroy({ where: { id: req.params.assignmentId } });
+  const deleted = await TeacherSubject.destroy({ where: schoolWhere(req.user, { id: req.params.assignmentId }) });
   if (!deleted) throw new ApiError(404, 'Teacher assignment not found');
   res.status(204).send();
 });
 
-const listTeacherAssignments = asyncHandler(async (_req, res) => {
+const listTeacherAssignments = asyncHandler(async (req, res) => {
   const assignments = await TeacherSubject.findAll({
+    where: schoolWhere(req.user),
     include: [
       { model: Teacher, as: 'teacher', include: [{ model: User, as: 'user', attributes: { exclude: ['password'] } }] },
       { model: Subject, as: 'subject' },

@@ -11,6 +11,10 @@ const Grade = sequelize.define('Grade', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   subjectId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -57,7 +61,8 @@ const Grade = sequelize.define('Grade', {
 }, {
   tableName: 'grades',
   indexes: [
-    { unique: true, fields: ['student_id', 'subject_id', 'term', 'session'] },
+    { unique: true, fields: ['school_id', 'student_id', 'subject_id', 'term', 'session'] },
+    { fields: ['school_id'] },
     { fields: ['class_id', 'term', 'session'] },
     { fields: ['teacher_id'] }
   ]

@@ -10,6 +10,7 @@ const {
   requireTeacherAssignment,
   resolveTeacherIdForWrite
 } = require('../services/accessService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const {
   Grade,
   Student,
@@ -38,7 +39,7 @@ const saveGradeValidators = [
 
 const listGrades = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
   const accessibleIds = await getAccessibleStudentIds(req.user);
 
   if (accessibleIds) where.studentId = { [Op.in]: accessibleIds.length ? accessibleIds : [-1] };
@@ -64,10 +65,12 @@ const listGrades = asyncHandler(async (req, res) => {
 });
 
 const saveGrade = asyncHandler(async (req, res) => {
-  const student = await Student.findByPk(req.body.studentId);
+  const student = await Student.findOne({ where: schoolWhere(req.user, { id: req.body.studentId }) });
   if (!student || student.classId !== Number(req.body.classId)) {
     throw new ApiError(422, 'Student does not belong to the selected class');
   }
+  await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class');
+  await assertSchoolRecord(Subject, req.body.subjectId, req.user, 'Subject');
 
   const teacherId = await resolveTeacherIdForWrite(
     req.user,
@@ -79,6 +82,7 @@ const saveGrade = asyncHandler(async (req, res) => {
 
   const [grade, created] = await Grade.findOrCreate({
     where: {
+      schoolId: req.user.schoolId ?? null,
       studentId: req.body.studentId,
       subjectId: req.body.subjectId,
       term: req.body.term,
@@ -86,6 +90,7 @@ const saveGrade = asyncHandler(async (req, res) => {
     },
     defaults: {
       studentId: req.body.studentId,
+      schoolId: req.user.schoolId ?? null,
       subjectId: req.body.subjectId,
       classId: req.body.classId,
       teacherId,
@@ -111,12 +116,12 @@ const saveGrade = asyncHandler(async (req, res) => {
     });
   }
 
-  const hydrated = await Grade.findByPk(grade.id, { include: gradeIncludes });
+  const hydrated = await Grade.findOne({ where: schoolWhere(req.user, { id: grade.id }), include: gradeIncludes });
   res.status(created ? 201 : 200).json({ grade: hydrated });
 });
 
 const updateGrade = asyncHandler(async (req, res) => {
-  const grade = await Grade.findByPk(req.params.id);
+  const grade = await Grade.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!grade) throw new ApiError(404, 'Grade not found');
 
   if (req.user.role === 'teacher') {
@@ -139,7 +144,7 @@ const updateGrade = asyncHandler(async (req, res) => {
 });
 
 const deleteGrade = asyncHandler(async (req, res) => {
-  const grade = await Grade.findByPk(req.params.id);
+  const grade = await Grade.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!grade) throw new ApiError(404, 'Grade not found');
   if (req.user.role === 'teacher') await requireTeacherAssignment(req.user, grade.classId, grade.subjectId);
   await grade.destroy();

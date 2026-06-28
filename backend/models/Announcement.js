@@ -15,6 +15,10 @@ const Announcement = sequelize.define('Announcement', {
     type: DataTypes.TEXT,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   createdBy: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -36,6 +40,7 @@ const Announcement = sequelize.define('Announcement', {
 }, {
   tableName: 'announcements',
   indexes: [
+    { fields: ['school_id'] },
     { fields: ['status'] },
     { fields: ['created_by'] }
   ]

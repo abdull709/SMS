@@ -2,6 +2,7 @@ const { body } = require('express-validator');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
+const { schoolWhere } = require('../services/tenantService');
 const { Announcement, User } = require('../models');
 
 const announcementValidators = [
@@ -17,7 +18,7 @@ function visibleToUser(item, role) {
 
 const listAnnouncements = asyncHandler(async (req, res) => {
   const { page, limit } = getPagination(req.query);
-  const where = req.user.role === 'admin' ? {} : { status: 'published' };
+  const where = schoolWhere(req.user, req.user.role === 'admin' ? {} : { status: 'published' });
   const all = await Announcement.findAll({
     where,
     include: [{ model: User, as: 'creator', attributes: { exclude: ['password'] } }],
@@ -33,6 +34,7 @@ const createAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.create({
     title: req.body.title,
     body: req.body.body,
+    schoolId: req.user.schoolId ?? null,
     visibleTo: req.body.visibleTo || ['all'],
     status: req.body.status || 'published',
     publishAt: req.body.publishAt || null,
@@ -42,14 +44,14 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 });
 
 const updateAnnouncement = asyncHandler(async (req, res) => {
-  const announcement = await Announcement.findByPk(req.params.id);
+  const announcement = await Announcement.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!announcement) throw new ApiError(404, 'Announcement not found');
   await announcement.update(req.body);
   res.json({ announcement });
 });
 
 const deleteAnnouncement = asyncHandler(async (req, res) => {
-  const deleted = await Announcement.destroy({ where: { id: req.params.id } });
+  const deleted = await Announcement.destroy({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!deleted) throw new ApiError(404, 'Announcement not found');
   res.status(204).send();
 });

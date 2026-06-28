@@ -12,14 +12,17 @@ const Student = sequelize.define('Student', {
     allowNull: false,
     unique: true
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   classId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
   admissionNumber: {
     type: DataTypes.STRING(50),
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   dateOfBirth: {
     type: DataTypes.DATEONLY,
@@ -37,7 +40,8 @@ const Student = sequelize.define('Student', {
   tableName: 'students',
   indexes: [
     { unique: true, fields: ['user_id'] },
-    { unique: true, fields: ['admission_number'] },
+    { unique: true, fields: ['school_id', 'admission_number'] },
+    { fields: ['school_id'] },
     { fields: ['class_id'] }
   ]
 });

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const ApiError = require('../utils/ApiError');
+const { schoolWhere } = require('./tenantService');
 const {
   Student,
   Parent,
@@ -31,7 +32,7 @@ async function getTeacherScopedClassIds(user) {
   if (user.role === 'admin') return null;
   const teacher = await getTeacherByUserId(user.id);
   const assignments = await TeacherSubject.findAll({
-    where: { teacherId: teacher.id },
+    where: schoolWhere(user, { teacherId: teacher.id }),
     attributes: ['classId']
   });
   return [...new Set(assignments.map((item) => item.classId))];
@@ -40,7 +41,7 @@ async function getTeacherScopedClassIds(user) {
 async function requireTeacherAssignment(user, classId, subjectId = null) {
   if (user.role === 'admin') return null;
   const teacher = await getTeacherByUserId(user.id);
-  const where = { teacherId: teacher.id, classId };
+  const where = schoolWhere(user, { teacherId: teacher.id, classId });
   if (subjectId) where.subjectId = subjectId;
 
   const assignment = await TeacherSubject.findOne({ where });
@@ -53,7 +54,9 @@ async function requireTeacherAssignment(user, classId, subjectId = null) {
 async function resolveTeacherIdForWrite(user, payloadTeacherId, classId, subjectId = null) {
   if (user.role === 'admin') {
     if (!payloadTeacherId) throw new ApiError(422, 'teacherId is required for admin-created records');
-    return payloadTeacherId;
+    const teacher = await Teacher.findOne({ where: schoolWhere(user, { id: payloadTeacherId }) });
+    if (!teacher) throw new ApiError(422, 'Teacher does not belong to this school');
+    return teacher.id;
   }
 
   const teacher = await requireTeacherAssignment(user, classId, subjectId);
@@ -71,7 +74,7 @@ async function getAccessibleStudentIds(user) {
   if (user.role === 'parent') {
     const parent = await getParentByUserId(user.id);
     const links = await StudentParent.findAll({
-      where: { parentId: parent.id },
+      where: schoolWhere(user, { parentId: parent.id }),
       attributes: ['studentId']
     });
     return links.map((link) => link.studentId);
@@ -81,7 +84,7 @@ async function getAccessibleStudentIds(user) {
     const classIds = await getTeacherScopedClassIds(user);
     if (!classIds.length) return [];
     const students = await Student.findAll({
-      where: { classId: { [Op.in]: classIds } },
+      where: schoolWhere(user, { classId: { [Op.in]: classIds } }),
       attributes: ['id']
     });
     return students.map((student) => student.id);
@@ -91,7 +94,8 @@ async function getAccessibleStudentIds(user) {
 }
 
 async function assertCanAccessStudent(user, studentId) {
-  const student = await Student.findByPk(studentId, {
+  const student = await Student.findOne({
+    where: schoolWhere(user, { id: studentId }),
     include: [{ model: SchoolClass, as: 'class' }]
   });
   if (!student) throw new ApiError(404, 'Student not found');
@@ -106,7 +110,7 @@ async function assertCanAccessStudent(user, studentId) {
   if (user.role === 'parent') {
     const parent = await getParentByUserId(user.id);
     const link = await StudentParent.findOne({
-      where: { studentId, parentId: parent.id }
+      where: schoolWhere(user, { studentId, parentId: parent.id })
     });
     if (link) return student;
   }

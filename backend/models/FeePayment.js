@@ -11,6 +11,10 @@ const FeePayment = sequelize.define('FeePayment', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   term: {
     type: DataTypes.ENUM('First Term', 'Second Term', 'Third Term'),
     allowNull: false
@@ -41,6 +45,7 @@ const FeePayment = sequelize.define('FeePayment', {
 }, {
   tableName: 'fee_payments',
   indexes: [
+    { fields: ['school_id'] },
     { fields: ['student_id', 'term', 'session'] },
     { fields: ['status'] }
   ]

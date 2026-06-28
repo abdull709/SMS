@@ -8,6 +8,7 @@ const {
   Parent,
   Teacher
 } = require('../models');
+const { createSchoolForAdmin } = require('./tenantService');
 
 const SALT_ROUNDS = 12;
 
@@ -23,28 +24,44 @@ async function hashPassword(password) {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-async function createUserWithProfile(payload) {
+async function createUserWithProfile(payload, options = {}) {
   const existing = await User.findOne({ where: { email: payload.email } });
   if (existing) {
     throw new ApiError(409, 'A user with this email already exists');
   }
 
   return sequelize.transaction(async (transaction) => {
+    let schoolId = options.schoolId ?? options.actor?.schoolId ?? payload.schoolId ?? null;
+    let school = null;
+
+    if (payload.role === 'admin') {
+      school = await createSchoolForAdmin(payload, transaction);
+      schoolId = school.id;
+    } else if (!options.actor && schoolId === null) {
+      throw new ApiError(422, 'A school context is required to create this user');
+    }
+
     const user = await User.create({
       firstName: payload.firstName,
       lastName: payload.lastName,
       email: payload.email.toLowerCase(),
       password: await hashPassword(payload.password),
       role: payload.role,
+      schoolId,
       phone: payload.phone || null,
       isActive: payload.isActive !== undefined ? payload.isActive : true
     }, { transaction });
+
+    if (school) {
+      await school.update({ ownerAdminId: user.id }, { transaction });
+    }
 
     const profile = payload.profile || {};
 
     if (payload.role === 'student') {
       await Student.create({
         userId: user.id,
+        schoolId,
         classId: profile.classId,
         admissionNumber: profile.admissionNumber,
         dateOfBirth: profile.dateOfBirth || null,
@@ -56,6 +73,7 @@ async function createUserWithProfile(payload) {
     if (payload.role === 'parent') {
       await Parent.create({
         userId: user.id,
+        schoolId,
         occupation: profile.occupation || null,
         address: profile.address || null
       }, { transaction });
@@ -64,6 +82,7 @@ async function createUserWithProfile(payload) {
     if (payload.role === 'teacher') {
       await Teacher.create({
         userId: user.id,
+        schoolId,
         employeeNumber: profile.employeeNumber,
         qualification: profile.qualification || null,
         specialization: profile.specialization || null

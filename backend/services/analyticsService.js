@@ -15,6 +15,7 @@ const {
   getTeacherByUserId,
   getTeacherScopedClassIds
 } = require('./accessService');
+const { schoolWhere } = require('./tenantService');
 
 async function attendancePercentage(where = {}) {
   const total = await Attendance.count({ where });
@@ -63,7 +64,8 @@ async function assignmentCompletion(where = {}) {
   };
 }
 
-async function getAdminAnalytics() {
+async function getAdminAnalytics(user) {
+  const where = schoolWhere(user);
   const [
     totalStudents,
     totalTeachers,
@@ -74,18 +76,19 @@ async function getAdminAnalytics() {
     gradeAverage,
     completion
   ] = await Promise.all([
-    Student.count(),
-    Teacher.count(),
-    Parent.count(),
-    SchoolClass.count(),
-    User.count({ where: { isActive: true } }),
-    attendancePercentage(),
-    averageGrades(),
-    assignmentCompletion()
+    Student.count({ where }),
+    Teacher.count({ where }),
+    Parent.count({ where }),
+    SchoolClass.count({ where }),
+    User.count({ where: schoolWhere(user, { isActive: true }) }),
+    attendancePercentage(where),
+    averageGrades(where),
+    assignmentCompletion(where)
   ]);
 
   const gradeBySubject = await Grade.findAll({
     attributes: ['subjectId', [fn('AVG', col('total_score')), 'averageScore']],
+    where,
     group: ['subjectId'],
     raw: true
   });
@@ -108,7 +111,7 @@ async function getAdminAnalytics() {
 async function getTeacherAnalytics(user) {
   const teacher = await getTeacherByUserId(user.id);
   const classIds = await getTeacherScopedClassIds(user);
-  const whereByClass = classIds.length ? { classId: { [Op.in]: classIds } } : { classId: -1 };
+  const whereByClass = classIds.length ? schoolWhere(user, { classId: { [Op.in]: classIds } }) : schoolWhere(user, { classId: -1 });
   const [
     assignedSubjects,
     assignedClasses,
@@ -118,17 +121,17 @@ async function getTeacherAnalytics(user) {
     gradeAverage,
     completion
   ] = await Promise.all([
-    TeacherSubject.count({ where: { teacherId: teacher.id } }),
+    TeacherSubject.count({ where: schoolWhere(user, { teacherId: teacher.id }) }),
     TeacherSubject.count({
-      where: { teacherId: teacher.id },
+      where: schoolWhere(user, { teacherId: teacher.id }),
       distinct: true,
       col: 'class_id'
     }),
     Student.count({ where: whereByClass }),
-    Assignment.count({ where: { teacherId: teacher.id } }),
-    attendancePercentage({ teacherId: teacher.id }),
-    averageGrades({ teacherId: teacher.id }),
-    assignmentCompletion({ teacherId: teacher.id })
+    Assignment.count({ where: schoolWhere(user, { teacherId: teacher.id }) }),
+    attendancePercentage(schoolWhere(user, { teacherId: teacher.id })),
+    averageGrades(schoolWhere(user, { teacherId: teacher.id })),
+    assignmentCompletion(schoolWhere(user, { teacherId: teacher.id }))
   ]);
 
   return {

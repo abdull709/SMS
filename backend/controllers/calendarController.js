@@ -2,6 +2,7 @@ const { body } = require('express-validator');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
+const { schoolWhere } = require('../services/tenantService');
 const { CalendarEvent, User } = require('../models');
 
 const eventValidators = [
@@ -19,6 +20,7 @@ function visibleToUser(item, role) {
 const listEvents = asyncHandler(async (req, res) => {
   const { page, limit } = getPagination(req.query);
   const all = await CalendarEvent.findAll({
+    where: schoolWhere(req.user),
     include: [{ model: User, as: 'creator', attributes: { exclude: ['password'] } }],
     order: [['startDate', 'ASC']]
   });
@@ -35,6 +37,7 @@ const createEvent = asyncHandler(async (req, res) => {
     startDate: req.body.startDate,
     endDate: req.body.endDate || null,
     type: req.body.type || 'event',
+    schoolId: req.user.schoolId ?? null,
     visibleTo: req.body.visibleTo || ['all'],
     createdBy: req.user.id
   });
@@ -42,14 +45,14 @@ const createEvent = asyncHandler(async (req, res) => {
 });
 
 const updateEvent = asyncHandler(async (req, res) => {
-  const event = await CalendarEvent.findByPk(req.params.id);
+  const event = await CalendarEvent.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!event) throw new ApiError(404, 'Calendar event not found');
   await event.update(req.body);
   res.json({ event });
 });
 
 const deleteEvent = asyncHandler(async (req, res) => {
-  const deleted = await CalendarEvent.destroy({ where: { id: req.params.id } });
+  const deleted = await CalendarEvent.destroy({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!deleted) throw new ApiError(404, 'Calendar event not found');
   res.status(204).send();
 });

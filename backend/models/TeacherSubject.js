@@ -11,6 +11,10 @@ const TeacherSubject = sequelize.define('TeacherSubject', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   subjectId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -22,7 +26,8 @@ const TeacherSubject = sequelize.define('TeacherSubject', {
 }, {
   tableName: 'teacher_subjects',
   indexes: [
-    { unique: true, fields: ['teacher_id', 'subject_id', 'class_id'] },
+    { unique: true, fields: ['school_id', 'teacher_id', 'subject_id', 'class_id'] },
+    { fields: ['school_id'] },
     { fields: ['teacher_id'] },
     { fields: ['class_id'] },
     { fields: ['subject_id'] }

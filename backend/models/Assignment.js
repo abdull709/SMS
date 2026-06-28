@@ -15,6 +15,10 @@ const Assignment = sequelize.define('Assignment', {
     type: DataTypes.TEXT,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   teacherId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -44,6 +48,7 @@ const Assignment = sequelize.define('Assignment', {
 }, {
   tableName: 'assignments',
   indexes: [
+    { fields: ['school_id'] },
     { fields: ['teacher_id'] },
     { fields: ['class_id', 'due_date'] },
     { fields: ['subject_id'] }

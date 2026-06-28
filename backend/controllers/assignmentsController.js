@@ -10,6 +10,7 @@ const {
   requireTeacherAssignment,
   resolveTeacherIdForWrite
 } = require('../services/accessService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const {
   Assignment,
   AssignmentSubmission,
@@ -40,16 +41,16 @@ const assignmentValidators = [
 ];
 
 async function createPendingSubmissions(assignment) {
-  const students = await Student.findAll({ where: { classId: assignment.classId } });
+  const students = await Student.findAll({ where: { schoolId: assignment.schoolId ?? null, classId: assignment.classId } });
   await Promise.all(students.map((student) => AssignmentSubmission.findOrCreate({
-    where: { assignmentId: assignment.id, studentId: student.id },
-    defaults: { status: 'pending' }
+    where: { schoolId: assignment.schoolId ?? null, assignmentId: assignment.id, studentId: student.id },
+    defaults: { schoolId: assignment.schoolId ?? null, status: 'pending' }
   })));
 }
 
 const listAssignments = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
 
   if (req.query.classId) where.classId = req.query.classId;
   if (req.query.subjectId) where.subjectId = req.query.subjectId;
@@ -57,7 +58,7 @@ const listAssignments = asyncHandler(async (req, res) => {
 
   if (req.user.role === 'teacher') {
     const classIds = await getAccessibleStudentIds(req.user);
-    const students = await Student.findAll({ where: { id: { [Op.in]: classIds.length ? classIds : [-1] } } });
+    const students = await Student.findAll({ where: schoolWhere(req.user, { id: { [Op.in]: classIds.length ? classIds : [-1] } }) });
     where.classId = { [Op.in]: [...new Set(students.map((student) => student.classId))] };
   }
 
@@ -68,7 +69,7 @@ const listAssignments = asyncHandler(async (req, res) => {
 
   if (req.user.role === 'parent') {
     const ids = await getAccessibleStudentIds(req.user);
-    const students = await Student.findAll({ where: { id: { [Op.in]: ids.length ? ids : [-1] } } });
+    const students = await Student.findAll({ where: schoolWhere(req.user, { id: { [Op.in]: ids.length ? ids : [-1] } }) });
     where.classId = { [Op.in]: [...new Set(students.map((student) => student.classId))] };
   }
 
@@ -85,10 +86,13 @@ const listAssignments = asyncHandler(async (req, res) => {
 });
 
 const createAssignment = asyncHandler(async (req, res) => {
+  await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class');
+  await assertSchoolRecord(Subject, req.body.subjectId, req.user, 'Subject');
   const teacherId = await resolveTeacherIdForWrite(req.user, req.body.teacherId, req.body.classId, req.body.subjectId);
   const assignment = await Assignment.create({
     title: req.body.title,
     description: req.body.description,
+    schoolId: req.user.schoolId ?? null,
     teacherId,
     subjectId: req.body.subjectId,
     classId: req.body.classId,
@@ -98,23 +102,25 @@ const createAssignment = asyncHandler(async (req, res) => {
   });
 
   if (assignment.status === 'published') await createPendingSubmissions(assignment);
-  const hydrated = await Assignment.findByPk(assignment.id, { include: assignmentIncludes });
+  const hydrated = await Assignment.findOne({ where: schoolWhere(req.user, { id: assignment.id }), include: assignmentIncludes });
   res.status(201).json({ assignment: hydrated });
 });
 
 const updateAssignment = asyncHandler(async (req, res) => {
-  const assignment = await Assignment.findByPk(req.params.id);
+  const assignment = await Assignment.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!assignment) throw new ApiError(404, 'Assignment not found');
   if (req.user.role === 'teacher') await requireTeacherAssignment(req.user, assignment.classId, assignment.subjectId);
+  if (req.body.classId) await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class');
+  if (req.body.subjectId) await assertSchoolRecord(Subject, req.body.subjectId, req.user, 'Subject');
 
   await assignment.update(req.body);
   if (assignment.status === 'published') await createPendingSubmissions(assignment);
-  const hydrated = await Assignment.findByPk(assignment.id, { include: assignmentIncludes });
+  const hydrated = await Assignment.findOne({ where: schoolWhere(req.user, { id: assignment.id }), include: assignmentIncludes });
   res.json({ assignment: hydrated });
 });
 
 const deleteAssignment = asyncHandler(async (req, res) => {
-  const assignment = await Assignment.findByPk(req.params.id);
+  const assignment = await Assignment.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!assignment) throw new ApiError(404, 'Assignment not found');
   if (req.user.role === 'teacher') await requireTeacherAssignment(req.user, assignment.classId, assignment.subjectId);
   await assignment.destroy();
@@ -122,7 +128,7 @@ const deleteAssignment = asyncHandler(async (req, res) => {
 });
 
 const submitAssignment = asyncHandler(async (req, res) => {
-  const assignment = await Assignment.findByPk(req.params.id);
+  const assignment = await Assignment.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!assignment) throw new ApiError(404, 'Assignment not found');
 
   const student = req.user.role === 'student'
@@ -134,8 +140,8 @@ const submitAssignment = asyncHandler(async (req, res) => {
   }
 
   const [submission] = await AssignmentSubmission.findOrCreate({
-    where: { assignmentId: assignment.id, studentId: student.id },
-    defaults: { status: 'submitted', submittedAt: new Date() }
+    where: schoolWhere(req.user, { assignmentId: assignment.id, studentId: student.id }),
+    defaults: { schoolId: req.user.schoolId ?? null, status: 'submitted', submittedAt: new Date() }
   });
 
   await submission.update({
@@ -148,7 +154,8 @@ const submitAssignment = asyncHandler(async (req, res) => {
 });
 
 const gradeSubmission = asyncHandler(async (req, res) => {
-  const submission = await AssignmentSubmission.findByPk(req.params.submissionId, {
+  const submission = await AssignmentSubmission.findOne({
+    where: schoolWhere(req.user, { id: req.params.submissionId }),
     include: [{ model: Assignment, as: 'assignment' }]
   });
   if (!submission) throw new ApiError(404, 'Submission not found');

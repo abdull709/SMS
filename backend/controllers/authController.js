@@ -40,7 +40,7 @@ const register = asyncHandler(async (req, res) => {
     throw new ApiError(422, 'The first registered user must be an admin');
   }
 
-  const user = await createUserWithProfile(req.body);
+  const user = await createUserWithProfile(req.body, req.user ? { actor: req.user } : {});
   res.status(201).json({ user });
 });
 

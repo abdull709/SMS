@@ -11,6 +11,10 @@ const StudentParent = sequelize.define('StudentParent', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   parentId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -28,7 +32,8 @@ const StudentParent = sequelize.define('StudentParent', {
 }, {
   tableName: 'student_parents',
   indexes: [
-    { unique: true, fields: ['student_id', 'parent_id'] },
+    { unique: true, fields: ['school_id', 'student_id', 'parent_id'] },
+    { fields: ['school_id'] },
     { fields: ['student_id'] },
     { fields: ['parent_id'] }
   ]

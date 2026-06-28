@@ -11,6 +11,10 @@ const SchoolClass = sequelize.define('SchoolClass', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   level: {
     type: DataTypes.ENUM('nursery', 'primary', 'secondary'),
     allowNull: false
@@ -30,6 +34,7 @@ const SchoolClass = sequelize.define('SchoolClass', {
 }, {
   tableName: 'classes',
   indexes: [
+    { fields: ['school_id'] },
     { fields: ['level'] },
     { fields: ['academic_session'] }
   ]

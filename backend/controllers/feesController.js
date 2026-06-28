@@ -2,11 +2,12 @@ const { Op } = require('sequelize');
 const asyncHandler = require('../utils/asyncHandler');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { getAccessibleStudentIds, assertCanAccessStudent } = require('../services/accessService');
+const { schoolWhere } = require('../services/tenantService');
 const { FeePayment, Student, User } = require('../models');
 
 const listFees = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
   const accessibleIds = await getAccessibleStudentIds(req.user);
 
   if (accessibleIds) where.studentId = { [Op.in]: accessibleIds.length ? accessibleIds : [-1] };
@@ -30,13 +31,14 @@ const listFees = asyncHandler(async (req, res) => {
 });
 
 const saveFee = asyncHandler(async (req, res) => {
+  await assertCanAccessStudent(req.user, req.body.studentId);
   const [fee, created] = await FeePayment.findOrCreate({
-    where: {
+    where: schoolWhere(req.user, {
       studentId: req.body.studentId,
       term: req.body.term,
       session: req.body.session
-    },
-    defaults: req.body
+    }),
+    defaults: { ...req.body, schoolId: req.user.schoolId ?? null }
   });
 
   if (!created) {

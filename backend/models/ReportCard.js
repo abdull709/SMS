@@ -11,6 +11,10 @@ const ReportCard = sequelize.define('ReportCard', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   classId: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -39,7 +43,8 @@ const ReportCard = sequelize.define('ReportCard', {
 }, {
   tableName: 'report_cards',
   indexes: [
-    { unique: true, fields: ['student_id', 'term', 'session'] },
+    { unique: true, fields: ['school_id', 'student_id', 'term', 'session'] },
+    { fields: ['school_id'] },
     { fields: ['class_id'] }
   ]
 });

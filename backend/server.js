@@ -9,6 +9,7 @@ require('./models');
 
 const routes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { runTenantSchemaMigrations } = require('./services/schemaMigrationService');
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
@@ -85,6 +86,7 @@ async function connectDatabase() {
     await sequelize.authenticate();
     if (String(process.env.AUTO_SYNC || 'false').toLowerCase() === 'true') {
       await sequelize.sync({ alter: true });
+      await runTenantSchemaMigrations();
     }
     if (String(process.env.AUTO_SEED || 'false').toLowerCase() === 'true') {
       const { seedDatabase } = require('./seeders/seed');

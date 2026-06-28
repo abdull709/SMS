@@ -9,6 +9,7 @@ const {
   requireTeacherAssignment,
   resolveTeacherIdForWrite
 } = require('../services/accessService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const {
   Attendance,
   Student,
@@ -38,7 +39,7 @@ const updateAttendanceValidators = [
 
 const listAttendance = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
   const accessibleIds = await getAccessibleStudentIds(req.user);
 
   if (accessibleIds) where.studentId = { [Op.in]: accessibleIds.length ? accessibleIds : [-1] };
@@ -62,12 +63,13 @@ const listAttendance = asyncHandler(async (req, res) => {
 });
 
 const markAttendance = asyncHandler(async (req, res) => {
+  await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class');
   const teacherId = await resolveTeacherIdForWrite(req.user, req.body.teacherId, req.body.classId);
   const teacher = req.user.role === 'teacher' ? await requireTeacherAssignment(req.user, req.body.classId) : null;
 
   const records = [];
   for (const item of req.body.records) {
-    const student = await Student.findByPk(item.studentId);
+    const student = await Student.findOne({ where: schoolWhere(req.user, { id: item.studentId }) });
     if (!student || student.classId !== Number(req.body.classId)) {
       throw new ApiError(422, `Student ${item.studentId} does not belong to the selected class`);
     }
@@ -76,7 +78,7 @@ const markAttendance = asyncHandler(async (req, res) => {
     }
 
     const existing = await Attendance.findOne({
-      where: { studentId: item.studentId, date: req.body.date }
+      where: schoolWhere(req.user, { studentId: item.studentId, date: req.body.date })
     });
 
     if (existing) {
@@ -90,6 +92,7 @@ const markAttendance = asyncHandler(async (req, res) => {
     } else {
       records.push(await Attendance.create({
         studentId: item.studentId,
+        schoolId: req.user.schoolId ?? null,
         classId: req.body.classId,
         teacherId,
         date: req.body.date,
@@ -103,7 +106,7 @@ const markAttendance = asyncHandler(async (req, res) => {
 });
 
 const updateAttendance = asyncHandler(async (req, res) => {
-  const attendance = await Attendance.findByPk(req.params.id);
+  const attendance = await Attendance.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!attendance) throw new ApiError(404, 'Attendance record not found');
 
   if (req.user.role === 'teacher') {
@@ -121,7 +124,7 @@ const updateAttendance = asyncHandler(async (req, res) => {
 });
 
 const deleteAttendance = asyncHandler(async (req, res) => {
-  const attendance = await Attendance.findByPk(req.params.id);
+  const attendance = await Attendance.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!attendance) throw new ApiError(404, 'Attendance record not found');
   if (req.user.role === 'teacher') await requireTeacherAssignment(req.user, attendance.classId);
   await attendance.destroy();

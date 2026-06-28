@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, pagedResponse } = require('../utils/pagination');
 const { getTeacherScopedClassIds, getStudentByUserId, getParentByUserId } = require('../services/accessService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const { SchoolClass, Teacher, User, Student, StudentParent } = require('../models');
 
 const classIncludes = [
@@ -18,7 +19,7 @@ const classValidators = [
 
 const listClasses = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
 
   if (req.query.level) where.level = req.query.level;
   if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
@@ -35,8 +36,8 @@ const listClasses = asyncHandler(async (req, res) => {
 
   if (req.user.role === 'parent') {
     const parent = await getParentByUserId(req.user.id);
-    const links = await StudentParent.findAll({ where: { parentId: parent.id }, attributes: ['studentId'] });
-    const students = await Student.findAll({ where: { id: { [Op.in]: links.map((link) => link.studentId) } } });
+    const links = await StudentParent.findAll({ where: schoolWhere(req.user, { parentId: parent.id }), attributes: ['studentId'] });
+    const students = await Student.findAll({ where: schoolWhere(req.user, { id: { [Op.in]: links.map((link) => link.studentId) } }) });
     where.id = { [Op.in]: [...new Set(students.map((student) => student.classId))] };
   }
 
@@ -53,25 +54,31 @@ const listClasses = asyncHandler(async (req, res) => {
 });
 
 const getClass = asyncHandler(async (req, res) => {
-  const schoolClass = await SchoolClass.findByPk(req.params.id, { include: classIncludes });
+  const schoolClass = await SchoolClass.findOne({ where: schoolWhere(req.user, { id: req.params.id }), include: classIncludes });
   if (!schoolClass) throw new ApiError(404, 'Class not found');
   res.json({ class: schoolClass });
 });
 
 const createClass = asyncHandler(async (req, res) => {
-  const schoolClass = await SchoolClass.create(req.body);
+  if (req.body.classTeacherId) {
+    await assertSchoolRecord(Teacher, req.body.classTeacherId, req.user, 'Class teacher');
+  }
+  const schoolClass = await SchoolClass.create({ ...req.body, schoolId: req.user.schoolId ?? null });
   res.status(201).json({ class: schoolClass });
 });
 
 const updateClass = asyncHandler(async (req, res) => {
-  const schoolClass = await SchoolClass.findByPk(req.params.id);
+  const schoolClass = await SchoolClass.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!schoolClass) throw new ApiError(404, 'Class not found');
+  if (req.body.classTeacherId) {
+    await assertSchoolRecord(Teacher, req.body.classTeacherId, req.user, 'Class teacher');
+  }
   await schoolClass.update(req.body);
   res.json({ class: schoolClass });
 });
 
 const deleteClass = asyncHandler(async (req, res) => {
-  const deleted = await SchoolClass.destroy({ where: { id: req.params.id } });
+  const deleted = await SchoolClass.destroy({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!deleted) throw new ApiError(404, 'Class not found');
   res.status(204).send();
 });

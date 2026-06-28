@@ -12,10 +12,13 @@ const Teacher = sequelize.define('Teacher', {
     allowNull: false,
     unique: true
   },
+  schoolId: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   employeeNumber: {
     type: DataTypes.STRING(50),
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   qualification: {
     type: DataTypes.STRING(120),
@@ -29,7 +32,8 @@ const Teacher = sequelize.define('Teacher', {
   tableName: 'teachers',
   indexes: [
     { unique: true, fields: ['user_id'] },
-    { unique: true, fields: ['employee_number'] }
+    { unique: true, fields: ['school_id', 'employee_number'] },
+    { fields: ['school_id'] }
   ]
 });
 

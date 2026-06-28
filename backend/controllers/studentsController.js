@@ -8,6 +8,7 @@ const {
   assertCanAccessStudent,
   getAccessibleStudentIds
 } = require('../services/accessService');
+const { assertSchoolRecord, schoolWhere } = require('../services/tenantService');
 const {
   sequelize,
   User,
@@ -28,7 +29,7 @@ const studentIncludes = [
   }
 ];
 
-async function normalizeParentIds(parentIds, transaction) {
+async function normalizeParentIds(parentIds, user, transaction) {
   if (!Array.isArray(parentIds)) return [];
 
   const invalidParentIds = parentIds.filter((parentId) => {
@@ -44,7 +45,7 @@ async function normalizeParentIds(parentIds, transaction) {
   if (!ids.length) return [];
 
   const existingCount = await Parent.count({
-    where: { id: { [Op.in]: ids } },
+    where: schoolWhere(user, { id: { [Op.in]: ids } }),
     transaction
   });
 
@@ -89,7 +90,7 @@ const updateStudentValidators = [
 
 const listStudents = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
-  const where = {};
+  const where = schoolWhere(req.user);
   const accessibleIds = await getAccessibleStudentIds(req.user);
 
   if (accessibleIds) where.id = { [Op.in]: accessibleIds.length ? accessibleIds : [-1] };
@@ -123,24 +124,27 @@ const listStudents = asyncHandler(async (req, res) => {
 
 const getStudent = asyncHandler(async (req, res) => {
   await assertCanAccessStudent(req.user, req.params.id);
-  const student = await Student.findByPk(req.params.id, { include: studentIncludes });
+  const student = await Student.findOne({ where: schoolWhere(req.user, { id: req.params.id }), include: studentIncludes });
   res.json({ student });
 });
 
 const createStudent = asyncHandler(async (req, res) => {
   const student = await sequelize.transaction(async (transaction) => {
-    const parentIds = await normalizeParentIds(req.body.parentIds, transaction);
+    await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class', { transaction });
+    const parentIds = await normalizeParentIds(req.body.parentIds, req.user, transaction);
     const user = await User.create({
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       email: req.body.email.toLowerCase(),
       password: await hashPassword(req.body.password),
       role: 'student',
+      schoolId: req.user.schoolId ?? null,
       phone: req.body.phone || null
     }, { transaction });
 
     const created = await Student.create({
       userId: user.id,
+      schoolId: req.user.schoolId ?? null,
       classId: req.body.classId,
       admissionNumber: req.body.admissionNumber,
       dateOfBirth: req.body.dateOfBirth || null,
@@ -150,8 +154,9 @@ const createStudent = asyncHandler(async (req, res) => {
 
     if (parentIds.length) {
       await Promise.all(parentIds.map((parentId, index) => StudentParent.findOrCreate({
-        where: { studentId: created.id, parentId },
+        where: schoolWhere(req.user, { studentId: created.id, parentId }),
         defaults: {
+          schoolId: req.user.schoolId ?? null,
           relationship: req.body.relationship || 'Guardian',
           isPrimary: index === 0
         },
@@ -162,16 +167,17 @@ const createStudent = asyncHandler(async (req, res) => {
     return created;
   });
 
-  const hydrated = await Student.findByPk(student.id, { include: studentIncludes });
+  const hydrated = await Student.findOne({ where: schoolWhere(req.user, { id: student.id }), include: studentIncludes });
   res.status(201).json({ student: hydrated });
 });
 
 const updateStudent = asyncHandler(async (req, res) => {
-  const student = await Student.findByPk(req.params.id);
+  const student = await Student.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!student) throw new ApiError(404, 'Student not found');
 
   await sequelize.transaction(async (transaction) => {
-    const parentIds = await normalizeParentIds(req.body.parentIds, transaction);
+    if (req.body.classId) await assertSchoolRecord(SchoolClass, req.body.classId, req.user, 'Class', { transaction });
+    const parentIds = await normalizeParentIds(req.body.parentIds, req.user, transaction);
     const user = await User.findByPk(student.userId, { transaction });
     const userUpdate = {};
     ['firstName', 'lastName', 'email', 'phone', 'isActive'].forEach((key) => {
@@ -187,9 +193,10 @@ const updateStudent = asyncHandler(async (req, res) => {
     if (Object.keys(profileUpdate).length) await student.update(profileUpdate, { transaction });
 
     if (Array.isArray(req.body.parentIds)) {
-      await StudentParent.destroy({ where: { studentId: student.id }, transaction });
+      await StudentParent.destroy({ where: schoolWhere(req.user, { studentId: student.id }), transaction });
       await Promise.all(parentIds.map((parentId, index) => StudentParent.create({
         studentId: student.id,
+        schoolId: req.user.schoolId ?? null,
         parentId,
         relationship: req.body.relationship || 'Guardian',
         isPrimary: index === 0
@@ -197,27 +204,28 @@ const updateStudent = asyncHandler(async (req, res) => {
     }
   });
 
-  const hydrated = await Student.findByPk(student.id, { include: studentIncludes });
+  const hydrated = await Student.findOne({ where: schoolWhere(req.user, { id: student.id }), include: studentIncludes });
   res.json({ student: hydrated });
 });
 
 const deleteStudent = asyncHandler(async (req, res) => {
-  const student = await Student.findByPk(req.params.id);
+  const student = await Student.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!student) throw new ApiError(404, 'Student not found');
   await User.destroy({ where: { id: student.userId } });
   res.status(204).send();
 });
 
 const linkParent = asyncHandler(async (req, res) => {
-  const student = await Student.findByPk(req.params.id);
+  const student = await Student.findOne({ where: schoolWhere(req.user, { id: req.params.id }) });
   if (!student) throw new ApiError(404, 'Student not found');
 
-  const parent = await Parent.findByPk(req.body.parentId);
+  const parent = await Parent.findOne({ where: schoolWhere(req.user, { id: req.body.parentId }) });
   if (!parent) throw new ApiError(404, 'Parent not found');
 
   const [link] = await StudentParent.findOrCreate({
-    where: { studentId: student.id, parentId: parent.id },
+    where: schoolWhere(req.user, { studentId: student.id, parentId: parent.id }),
     defaults: {
+      schoolId: req.user.schoolId ?? null,
       relationship: req.body.relationship || 'Guardian',
       isPrimary: Boolean(req.body.isPrimary)
     }

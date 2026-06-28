@@ -49,6 +49,7 @@ export const resourceConfigs = {
       { name: 'lastName', label: 'Last name', required: true },
       { name: 'email', label: 'Email', type: 'email', required: true },
       { name: 'password', label: 'Password', type: 'password', required: true, createOnlyHint: true },
+      { name: 'schoolName', label: 'School name' },
       { name: 'phone', label: 'Phone' },
       { name: 'isActive', label: 'Status', type: 'select', options: [{ label: 'Active', value: 'true' }, { label: 'Disabled', value: 'false' }] }
     ],
